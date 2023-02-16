@@ -4,12 +4,9 @@ import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.media.MediaPlayer
-import android.net.Uri
 import android.os.Build
 import android.os.IBinder
-import android.os.Parcelable
-import android.util.Log
+import android.widget.RemoteViews
 import androidx.annotation.RequiresApi
 
 
@@ -18,108 +15,60 @@ class SampleForegroundService : Service() {
     //set up service
     //sending broadcast to main activity
     val LOG_TAG = "clickedoperation"
-    var mp: MediaPlayer? = null
+
     companion object {
         val MY_ACTION = "MY_ACTION"
     }
+
     override fun onBind(intent: Intent?): IBinder? {
         return null
     }
+
     @SuppressLint("UnspecifiedImmutableFlag")
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        var mySongs: ArrayList<Parcelable>? = null
-        var sname: String? = null
-        var position = 0
-        if (intent!!.action.equals(Constants.object1.STARTFOREGROUND_ACTION)) {
-            Log.i(LOG_TAG, "Received Start Foreground Intent ")
+
+        if (intent?.action.equals(Constants.STARTFOREGROUND_ACTION)) {
+            var songName = ""
             val i = intent
-            val b = i.extras
-            position = b!!.getInt("pos", 0)
-            mySongs = b.getParcelableArrayList("songs")
-            sname = mySongs!![position].toString()
-            val stringExtra = i.getStringExtra("songname")
-            position = b.getInt("pos", 0)
-            val u = Uri.parse(mySongs[position].toString())
-            mp = MediaPlayer.create(applicationContext, u)
-            mp!!.start()
-            val previousIntent = Intent(this, SampleForegroundService::class.java)
-            previousIntent.action = Constants.PREV_ACTION
-            val ppreviousIntent = PendingIntent.getService(
-                this, 0,
-                previousIntent, 0
-            )
-            val playIntent = Intent(this, SampleForegroundService::class.java)
-            playIntent.action = Constants.object1.PLAY_ACTION
-            val pplayIntent = PendingIntent.getService(
-                this, 0,
-                playIntent, 0
-            )
-            val nextIntent = Intent(this, SampleForegroundService::class.java)
-            nextIntent.action = Constants.object1.NEXT_ACTION
-            val pnextIntent = PendingIntent.getService(
-                this, 0,
-                nextIntent, 0
-            )
-
-
-//        contentView . setTextViewText (R.id.tvSongName, songName)
-
-            val channelid = "Song"
-            val notificationBuilder = Notification.Builder(this, channelid)
-                .setSmallIcon(R.mipmap.ic_launcher).setOngoing(true)
-                .setPriority(Notification.PRIORITY_HIGH)
-                .addAction(
-                    android.R.drawable.ic_media_previous,
-                    "Previous", ppreviousIntent
-                )
-                .addAction(
-                    android.R.drawable.ic_media_play, "Pause",
-                    pplayIntent
-                )
-                .addAction(
-                    android.R.drawable.ic_media_next, "Next",
-                    pnextIntent
-                ).build()
-            val notificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
-                    channelid,
-                    "Channel",
-                    NotificationManager.IMPORTANCE_HIGH
-                )
-                notificationManager.createNotificationChannel(channel)
+            val stringExtra = i?.getStringExtra("clickoperation")
+            if (i?.extras?.containsKey("songname") == true) {
+                songName =
+                    (i.extras?.getString("songname")?.split("**")?.toTypedArray()?.get(0) ?: "")
             }
-            notificationManager.notify(0, notificationBuilder)
+            if (stringExtra.equals("Pause")) {
+                shownotification(songName, R.drawable.play)
+            } else {
+                shownotification(songName)
+            }
 
-//                startForeground(101,
-//                    notificationBuilder);
 
-        } else if (intent.action.equals(Constants.PREV_ACTION)) {
+        } else if (intent?.action.equals(Constants.PREV_ACTION)) {
             val intent = Intent()
             intent.action = MY_ACTION
             intent.putExtra("DATAPASSED", "Prev")
             sendBroadcast(intent)
-        } else if (intent.action.equals(Constants.PLAY_ACTION)) {
-            Log.i(LOG_TAG, "Clicked Play")
-            if (mp!!.isPlaying) {
-                // pause!!.setBackgroundResource(R.drawable.ic_play_arrow_black_24dp)
-                mp!!.pause()
-            } else {
-//                pause!!.setBackgroundResource(R.drawable.pause)
-                mp!!.start()
-            }
+        } else if (intent?.action.equals(Constants.PLAY_ACTION)) {
+            val intentPause = Intent()
+            intentPause.action = MY_ACTION
+            intentPause.putExtra("DATAPASSED", "Pause")
+            sendBroadcast(intentPause)
 
 
-        } else if (intent.action.equals(Constants.NEXT_ACTION)) {
-            Log.i(LOG_TAG, "Clicked Next")
-            val intent = Intent()
-            intent.action = MY_ACTION
-            intent.putExtra("DATAPASSED", "Next")
-            sendBroadcast(intent)
+        } else if (intent?.action.equals(Constants.PAUSE_ACTION)) {
+            val intentPause = Intent()
+            intentPause.action = MY_ACTION
+            intentPause.putExtra("DATAPASSED", "Pause")
+            sendBroadcast(intentPause)
 
-        } else if (intent.action.equals(
+
+        } else if (intent?.action.equals(Constants.NEXT_ACTION)) {
+            val intentnext = Intent()
+            intentnext.action = MY_ACTION
+            intentnext.putExtra("DATAPASSED", "Next")
+            sendBroadcast(intentnext)
+
+        } else if (intent?.action.equals(
                 Constants.STOPFOREGROUND_ACTION
             )
         ) {
@@ -128,6 +77,55 @@ class SampleForegroundService : Service() {
 
         return START_STICKY
 
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun shownotification(
+        sonName: String, drawable: Int = R.drawable.pause
+    ) {
+        val bigView = RemoteViews(
+            applicationContext.packageName,
+            R.layout.activity_player
+        )
+        bigView.setImageViewResource(R.id.pause, drawable)
+        bigView.setTextViewText(R.id.tvSongName, sonName)
+        val previousIntent = Intent(this, SampleForegroundService::class.java)
+        previousIntent.action = Constants.PREV_ACTION
+        val ppreviousIntent = PendingIntent.getService(
+            this, 0,
+            previousIntent, PendingIntent.FLAG_MUTABLE
+        )
+        val playIntent = Intent(this, SampleForegroundService::class.java)
+        playIntent.action = Constants.object1.PLAY_ACTION
+        val pplayIntent = PendingIntent.getService(
+            this, 0,
+            playIntent, PendingIntent.FLAG_MUTABLE
+        )
+        val nextIntent = Intent(this, SampleForegroundService::class.java)
+        nextIntent.action = Constants.object1.NEXT_ACTION
+        val pnextIntent = PendingIntent.getService(
+            this, 0,
+            nextIntent, PendingIntent.FLAG_MUTABLE
+        )
+        bigView.setOnClickPendingIntent(R.id.next, pnextIntent)
+        bigView.setOnClickPendingIntent(R.id.pause, pplayIntent)
+        bigView.setOnClickPendingIntent(R.id.previous, ppreviousIntent)
+        val channelid = "Song"
+        val notificationBuilder = Notification.Builder(this, channelid)
+            .setSmallIcon(R.mipmap.ic_launcher).setOngoing(true)
+            .setCustomBigContentView(bigView)
+            .build()
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelid,
+                "Channel",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            notificationManager.createNotificationChannel(channel)
+        }
+        notificationManager.notify(0, notificationBuilder)
     }
 
 
